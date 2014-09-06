@@ -1,0 +1,17 @@
+logs
+project/project
+project/target
+target
+.history
+/.idea
+/*.iml
+/out
+/.idea_modules
+/.classpath
+/.project
+/RUNNING_PID
+/.settings
+/project/*-shim.sbt
+*.class
+.cache
+twitter4j.properties

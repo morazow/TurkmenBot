@@ -2,36 +2,88 @@ package com.morazow.turkmenbot
 
 import twitter4j.Twitter
 import twitter4j.TwitterFactory
+
+import twitter4j.Paging
+import twitter4j.Status
 import twitter4j.StatusUpdate
+import twitter4j.ResponseList
+import twitter4j.TwitterResponse
 
 import scala.collection.JavaConversions._
 
-object TurkmenBot {
+/**
+ * A trait with checkAndWait function that checks whether the
+ * rate limit has been hit and wait if it has.
+ *
+ * This ignores the fact that different request types have different
+ * limits, but it keeps things simple.
+ */
+trait RateChecker {
+  /**
+   * See whether the rate limit has been hit, and wait until it
+   * resets if so. Waits 10 seconds longer than the reset time to
+   * ensure the time is sufficient.
+   *
+   * This is surely not an optimal solution, but it seems to do
+   * the trick.
+   */
+  def checkAndWait(response: TwitterResponse, verbose: Boolean = false) {
+    val rateLimitStatus = response.getRateLimitStatus
+    if (verbose) println("RLS: " + rateLimitStatus)
+    if (rateLimitStatus != null && rateLimitStatus.getRemaining == 0) {
+      println("*** You hit your rate limit. ***")
+      val waitTime = rateLimitStatus.getSecondsUntilReset + 10
+      println("Waiting " + waitTime + " seconds ( "
+        + waitTime/60.0 + " minutes) for rate limit reset.")
+      Thread.sleep(waitTime*1000)
+    }
+  }
+}
+
+object TurkmenBot extends RateChecker {
 
   def main(args: Array[String]) = {
 
+    println("Setting Twitter Instance!")
     val twitterFactory = new TwitterFactory()
     val twitter = twitterFactory.getInstance()
 
-    println("Updating status!")
-    //twitter.updateStatus("Test")
-    val num = if (args.length == 1) args(0).toInt else 10
     val userName = twitter.getScreenName
-    val statuses = twitter.getMentionsTimeline.take(num)
-    println("Statuses: "+statuses)
 
-    statuses.foreach { status => {
-      val statusAuthor = status.getUser.getScreenName
-      val mentionedEntities = status.getUserMentionEntities.map(_.getScreenName).toList
-      val participants = (statusAuthor :: mentionedEntities).toSet - userName
-      val text = participants.map(p=>"@"+p).mkString(" ") + parseStatus(status.getText)
-      val reply = new StatusUpdate(text).inReplyToStatusId(status.getId)
-      println("Replying: " + text)
-      twitter.updateStatus(reply)
-    }}
+    var last_id: Long = 508320579469205506L // max id from last api call
+    var page = new Paging()
+
+    println("Starting infinite loop!")
+    while (true) {
+      Thread.sleep(1000 * 60 * 3)
+
+      println("Getting mentions!")
+      page.setSinceId(last_id)
+      val mentions = twitter.getMentionsTimeline(page)
+      checkAndWait(mentions, true)
+
+      possibleReplies(mentions, userName).foreach { reply => {
+        println("Replying: <" + reply._1 + "> to id: " + reply._2)
+
+        val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
+        last_id = scala.math.max(last_id, reply._2 + 1)
+
+        checkAndWait(response, true)
+      }}
+
+    }
 
     println("Done!")
+  }
 
+  def possibleReplies(mentions: ResponseList[Status], userName: String) = {
+    for {
+      mention <- mentions
+      statusAuthor = mention.getUser.getScreenName
+      mentionedEntities = mention.getUserMentionEntities.map(_.getScreenName).toList
+      participants = (statusAuthor :: mentionedEntities).toSet - userName
+      text = participants.map(p=>"@"+p).mkString(" ") + parseStatus(mention.getText)
+    } yield (text, mention.getId)
   }
 
   def parseStatus(str: String) = {
@@ -50,10 +102,7 @@ object TurkmenBot {
   lazy val nakyllar =
     scala.io.Source.fromFile("nakyllar.txt").getLines.toList//.filter(_.length <= 130)
 
-  var nextNakyl = -1
-
   def getNextNakyl() = {
-    //nextNakyl = (nextNakyl + 1) % nakyllar.length
     " " + nakyllar(scala.util.Random.nextInt(nakyllar.length))
   }
 

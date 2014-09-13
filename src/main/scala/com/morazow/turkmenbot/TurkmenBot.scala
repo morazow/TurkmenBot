@@ -42,6 +42,8 @@ trait RateChecker {
 
 object TurkmenBot extends RateChecker {
 
+  val db = "last_id.txt"
+
   def main(args: Array[String]) = {
 
     println("Setting Twitter Instance!")
@@ -50,12 +52,12 @@ object TurkmenBot extends RateChecker {
 
     val userName = twitter.getScreenName
 
-    var last_id: Long = 508320579469205506L // max id from last api call
+    var last_id: Long = readLastID(db) // last id
     var page = new Paging()
 
     println("Starting infinite loop!")
     while (true) {
-      Thread.sleep(1000 * 60 * 3)
+      Thread.sleep(1000 * 60 * 1) // wait 1 minute
 
       println("Getting mentions!")
       page.setSinceId(last_id)
@@ -70,6 +72,7 @@ object TurkmenBot extends RateChecker {
 
         checkAndWait(response, true)
       }}
+      writeLastID(db, last_id)
 
     }
 
@@ -92,7 +95,7 @@ object TurkmenBot extends RateChecker {
       " OK."
     else {
       status(2) match {
-        case "Salam" | "salam" => " Waleykimsalam"
+        case "Salam" | "salam" => " Waleýkimsalam!"
         case "Nakyl" | "nakyl" => getNextNakyl()
         case _ => " Düşünmedim?"
       }
@@ -104,6 +107,18 @@ object TurkmenBot extends RateChecker {
 
   def getNextNakyl() = {
     " " + nakyllar(scala.util.Random.nextInt(nakyllar.length))
+  }
+
+  def readLastID(fileName: String): Long = {
+    scala.io.Source.fromFile("last_id.txt").getLines.toList.head.toLong
+  }
+
+  def writeLastID(fileName: String, last_id: Long) = {
+    import java.io.File
+    import java.io.PrintWriter
+    val writer = new PrintWriter(new File(fileName))
+    writer.println(last_id)
+    writer.close()
   }
 
 }

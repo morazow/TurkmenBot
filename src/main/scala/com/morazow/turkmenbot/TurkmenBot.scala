@@ -9,6 +9,9 @@ import twitter4j.StatusUpdate
 import twitter4j.ResponseList
 import twitter4j.TwitterResponse
 
+import java.util.Calendar
+import java.text.SimpleDateFormat
+
 import scala.collection.JavaConversions._
 
 /**
@@ -43,6 +46,7 @@ trait RateChecker {
 object TurkmenBot extends RateChecker {
 
   val db = "last_id.txt"
+  val dateFormatter = new SimpleDateFormat("y-M-d")
 
   def main(args: Array[String]) = {
 
@@ -97,7 +101,8 @@ object TurkmenBot extends RateChecker {
       status(2) match {
         case "Salam" | "salam" => " Waleýkimsalam!"
         case "Nakyl" | "nakyl" => getNextNakyl()
-        case _ => " Düşünmedim?"
+        case "Fuck"  | "fuck"  => " Samsyk, sögünme Twitter-da!"
+        case _ => " Düşünmedim? " + dateFormatter.format(Calendar.getInstance().getTime())
       }
     }
   }

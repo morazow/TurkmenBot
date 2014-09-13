@@ -46,7 +46,7 @@ trait RateChecker {
 object TurkmenBot extends RateChecker {
 
   val db = "last_id.txt"
-  val dateFormatter = new SimpleDateFormat("y-M-d")
+  val dateFormatter = new SimpleDateFormat("yyyy-MM-dd")
 
   def main(args: Array[String]) = {
 

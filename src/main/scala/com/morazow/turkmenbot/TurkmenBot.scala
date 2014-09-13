@@ -67,12 +67,12 @@ object TurkmenBot extends RateChecker {
       possibleReplies(mentions, userName).foreach { reply => {
         println("Replying: <" + reply._1 + "> to id: " + reply._2)
 
-        val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
-        last_id = scala.math.max(last_id, reply._2 + 1)
+        //val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
+        //last_id = scala.math.max(last_id, reply._2 + 1)
 
-        checkAndWait(response, true)
+        //checkAndWait(response, true)
       }}
-      writeLastID(db, last_id)
+      //writeLastID(db, last_id)
 
     }
 
@@ -101,6 +101,13 @@ object TurkmenBot extends RateChecker {
       }
     }
   }
+
+  import java.nio.charset.CodingErrorAction
+  import scala.io.Codec
+
+  implicit val codec = Codec("UTF-8")
+        .onMalformedInput(CodingErrorAction.REPLACE)
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
 
   lazy val nakyllar =
     scala.io.Source.fromFile("nakyllar.txt").getLines.toList//.filter(_.length <= 130)

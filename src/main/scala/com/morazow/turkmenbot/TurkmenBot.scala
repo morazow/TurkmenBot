@@ -67,12 +67,12 @@ object TurkmenBot extends RateChecker {
       possibleReplies(mentions, userName).foreach { reply => {
         println("Replying: <" + reply._1 + "> to id: " + reply._2)
 
-        //val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
-        //last_id = scala.math.max(last_id, reply._2 + 1)
+        val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
+        last_id = scala.math.max(last_id, reply._2 + 1)
 
-        //checkAndWait(response, true)
+        checkAndWait(response, true)
       }}
-      //writeLastID(db, last_id)
+      writeLastID(db, last_id)
 
     }
 

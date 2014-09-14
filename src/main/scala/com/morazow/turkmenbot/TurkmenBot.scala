@@ -96,7 +96,8 @@ object TurkmenBot extends RateChecker {
   def parseStatus(str: String) = {
     val status = str.split("\\s+")
     if (status(1) != "!")
-      " OK. " + dateFormatter.format(Calendar.getInstance().getTime())
+      //" OK. " + dateFormatter.format(Calendar.getInstance().getTime())
+      getNextNakyl()
     else {
       status(2) match {
         case "Salam" | "salam" => " Waleýkimsalam!"

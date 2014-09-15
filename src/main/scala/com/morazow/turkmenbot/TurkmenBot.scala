@@ -12,6 +12,12 @@ import twitter4j.TwitterResponse
 import java.util.Calendar
 import java.text.SimpleDateFormat
 
+import akka.actor.Actor
+import akka.actor.Props
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+
+import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 
 /**
@@ -54,31 +60,82 @@ object TurkmenBot extends RateChecker {
 
   def main(args: Array[String]) = {
 
-    var last_id: Long = readLastID(db) // last id
-    var page = new Paging()
+    val system = ActorSystem("turkmen-bot")
 
-    println("Starting infinite loop!")
-    while (true) {
-      Thread.sleep(1000 * 60 * 1) // wait 1 minute
+    val statusBot  = system.actorOf(Props[StatusBot],  "status-bot")
+    val mentionBot = system.actorOf(Props[MentionBot], "mention-bot")
 
-      println("Getting mentions!")
-      page.setSinceId(last_id)
-      val mentions = twitter.getMentionsTimeline(page)
-      checkAndWait(mentions, true)
+    /**
+     * Dispatch 'nakyl' within 1 minute and then every 1 day
+     */
+    system
+      .scheduler
+      .schedule(1.minute, 1.day, statusBot, NakylQuote)(system.dispatcher, ActorRef.noSender)
 
-      possibleReplies(mentions, userName).foreach { reply => {
-        println("Replying: <" + reply._1 + "> to id: " + reply._2)
+    /**
+     * Dispatch 'beyik soz' within 1 hour and then every 1 day
+     */
+    system
+      .scheduler
+      .schedule(2.hour, 1.day, statusBot, BeyikQuote)(system.dispatcher, ActorRef.noSender)
 
-        val response = twitter.updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
-        last_id = scala.math.max(last_id, reply._2 + 1)
+    /**
+     * Dispatch 'garagujuk' within 4 hour and then every 2 days
+     */
+    system
+      .scheduler
+      .schedule(4.hour, 2.day, statusBot, GaragujukQuote)(system.dispatcher, ActorRef.noSender)
 
-        checkAndWait(response, true)
-      }}
-
-      writeLastID(db, last_id)
-    }
+    /**
+     * Reply to mentions
+     */
+    system
+      .scheduler
+      .schedule(1.second, 3.minute, mentionBot, GetMentions)(system.dispatcher, ActorRef.noSender)
 
     println("Done!")
+  }
+
+  case object GaragujukQuote
+  case object BeyikQuote
+  case object NakylQuote
+
+  class StatusBot extends Actor {
+    def receive = {
+      case GaragujukQuote => updateStatus("garagüjük", garagujuk)
+      case BeyikQuote     => updateStatus("beýik", beyik)
+      case NakylQuote     => updateStatus("nakyl", nakyllar)
+    }
+
+    def updateStatus(hashtag: String, L: List[String]): Unit = {
+      val status = selectRandom(L)+ s" #$hashtag"
+      println(s"Tweeting $hashtag: " + status)
+      twitter.updateStatus(status)
+    }
+  }
+
+  case object GetMentions
+
+  class MentionBot extends Actor {
+    var last_id: Long = readLastID(db)
+    var page = new Paging()
+
+    def receive = {
+      case GetMentions => {
+        page.setSinceId(last_id)
+        val mentions = twitter.getMentionsTimeline(page)
+        checkAndWait(mentions, true)
+
+        possibleReplies(mentions, userName).foreach { reply => {
+          println("Replying: <" + reply._1 + "> to id: " + reply._2)
+          val response = twitter
+            .updateStatus(new StatusUpdate(reply._1).inReplyToStatusId(reply._2))
+          last_id = scala.math.max(last_id, reply._2 + 1)
+          checkAndWait(response, true)
+        }}
+        writeLastID(db, last_id)
+      }
+    }
   }
 
   def possibleReplies(mentions: ResponseList[Status], userName: String) = {
@@ -94,11 +151,11 @@ object TurkmenBot extends RateChecker {
   def parseStatus(str: String) = {
     val status = str.split("\\s+")
     if (status(1) != "!")
-      getNextNakyl() // OK ýerine nakyl bilen ýürege düş
+      selectRandom(nakyllar) // OK ýerine nakyl bilen ýürege düş
     else {
       status(2) match {
         case "Salam" | "salam" => " Waleýkimsalam!"
-        case "Nakyl" | "nakyl" => getNextNakyl()
+        case "Nakyl" | "nakyl" => " " + selectRandom(nakyllar)
         case "Fuck"  | "fuck"  => " Samsyk, sögünme Twitter-da!"
         case _ => " Düşünmedim? " + dateFormatter.format(Calendar.getInstance().getTime())
       }
@@ -112,12 +169,16 @@ object TurkmenBot extends RateChecker {
         .onMalformedInput(CodingErrorAction.REPLACE)
         .onUnmappableCharacter(CodingErrorAction.REPLACE)
 
-  lazy val nakyllar =
-    scala.io.Source.fromFile("files/nakyllar.txt").getLines.toList//.filter(_.length <= 130)
+  lazy val beyik     = readFile("files/beyik.txt")
+  lazy val nakyllar  = readFile("files/nakyllar.txt")
+  lazy val garagujuk = readFile("files/garagujuk.txt")
 
-  def getNextNakyl() = {
-    " " + nakyllar(scala.util.Random.nextInt(nakyllar.length))
-  }
+
+  def readFile(fileName: String) =
+    scala.io.Source.fromFile(fileName).getLines.toList//.filter(_.length <= 130)
+
+  def selectRandom(L: List[String]) =
+    L(scala.util.Random.nextInt(L.length))
 
   def readLastID(fileName: String): Long = {
     scala.io.Source.fromFile("last_id.txt").getLines.toList.head.toLong

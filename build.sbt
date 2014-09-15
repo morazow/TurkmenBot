@@ -13,6 +13,7 @@ scalaVersion := "2.10.3"
 resolvers ++= Seq("maven.org" at "http://repo2.maven.org/maven2")
 
 libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-actor" % "2.3.4",
   "org.twitter4j" % "twitter4j-core" % "4.0.2"
 )
 

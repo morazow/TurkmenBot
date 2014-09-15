@@ -48,13 +48,11 @@ object TurkmenBot extends RateChecker {
   val db = "last_id.txt"
   val dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:SS")
 
+  val twitterFactory = new TwitterFactory()
+  val twitter = twitterFactory.getInstance()
+  val userName = twitter.getScreenName
+
   def main(args: Array[String]) = {
-
-    println("Setting Twitter Instance!")
-    val twitterFactory = new TwitterFactory()
-    val twitter = twitterFactory.getInstance()
-
-    val userName = twitter.getScreenName
 
     var last_id: Long = readLastID(db) // last id
     var page = new Paging()
@@ -76,8 +74,8 @@ object TurkmenBot extends RateChecker {
 
         checkAndWait(response, true)
       }}
-      writeLastID(db, last_id)
 
+      writeLastID(db, last_id)
     }
 
     println("Done!")
@@ -96,8 +94,7 @@ object TurkmenBot extends RateChecker {
   def parseStatus(str: String) = {
     val status = str.split("\\s+")
     if (status(1) != "!")
-      //" OK. " + dateFormatter.format(Calendar.getInstance().getTime())
-      getNextNakyl()
+      getNextNakyl() // OK ýerine nakyl bilen ýürege düş
     else {
       status(2) match {
         case "Salam" | "salam" => " Waleýkimsalam!"
@@ -116,7 +113,7 @@ object TurkmenBot extends RateChecker {
         .onUnmappableCharacter(CodingErrorAction.REPLACE)
 
   lazy val nakyllar =
-    scala.io.Source.fromFile("nakyllar.txt").getLines.toList//.filter(_.length <= 130)
+    scala.io.Source.fromFile("files/nakyllar.txt").getLines.toList//.filter(_.length <= 130)
 
   def getNextNakyl() = {
     " " + nakyllar(scala.util.Random.nextInt(nakyllar.length))
